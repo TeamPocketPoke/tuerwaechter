@@ -252,7 +252,7 @@ function render() {
   $("hist").innerHTML = rows.reverse().slice(0, 12).join("") || '<li><span class="note">Noch nichts</span></li>';
   // Abfrage-Hinweis
   if (askedAt) {
-    if (cur && cur.time >= askedAt) { $("asknote").textContent = "Aktualisiert um " + hhmm(cur.time) + "."; askedAt = 0; $("ask").disabled = false; }
+    if (cur && cur.time >= askedAt) { $("asknote").textContent = "Antwort um " + hhmm(cur.time) + ": " + (STATES[cur.d.s] || STATES[4]).sub + "."; askedAt = 0; $("ask").disabled = false; }
     else $("asknote").textContent = "Gefragt um " + hhmm(askedAt) + ". " + (cur && cur.d.mode === "wach" ? "Die Antwort kommt gleich." : "Der Wächter schaut alle " + pollMin + " Minuten nach. Die Antwort erscheint hier von selbst.");
   }
 }
