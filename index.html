@@ -284,6 +284,8 @@ async function ask() {
     const r = await fetch(`${NTFY}/${topic}-frage`, { method: "POST", body: "seite" });
     if (!r.ok) throw new Error(r.status);
     askedAt = Math.floor(Date.now() / 1000) - 2;
+    // Nicht nur auf die Live-Verbindung warten: 60 s lang alle 2 s selbst nachfragen
+    let n = 0; const iv = setInterval(() => { if (!askedAt || ++n > 30) return clearInterval(iv); poll(); pollNews(); }, 2000);
   } catch (e) {
     $("asknote").textContent = "Abfragen ging nicht. Hast du Internet?"; $("ask").disabled = false; return;
   }
