@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E1430">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Türwächter">
+<meta name="referrer" content="no-referrer">
+<title>Türwächter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Figtree:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Eine Handy-Spalte: oben der Zustand gross, darunter Lebenszeichen, Knopf, Verlauf */
+:root{
+  --bg:#F2F4FA; --card:#FFFFFF; --ink:#131936; --muted:#56607F; --line:#DCE1EE;
+  --lock:#0E7A4A; --open:#D2600F; --door:#4A5876; --cal:#6B3FB0; --accent:#2F55F0; --on-accent:#FFFFFF; --amber:#FFB224; --warn-bg:#FFF1DE; --warn:#9A4A00;
+  --display:"Big Shoulders Display", Impact, "Arial Narrow", sans-serif;
+  --body:"Figtree", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0E1430; --card:#18214D; --ink:#EEF1FB; --muted:#A9B2D3; --line:#2C3770;
+  --lock:#1A9A5C; --open:#D9681D; --door:#5E6D92; --cal:#8B5FD0; --accent:#7D97FF; --on-accent:#0E1430; --warn-bg:#3A2A12; --warn:#FFC266; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45}
+main{max-width:480px;margin:0 auto;padding-block:max(18px, env(safe-area-inset-top, 0px)) max(32px, env(safe-area-inset-bottom, 0px));padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:14px}
+.top{display:flex;align-items:center;gap:10px}
+.top svg{width:34px;height:34px;flex:none}
+.top b{font-family:var(--display);font-weight:900;font-size:26px;letter-spacing:.5px}
+.top span{margin-left:auto;font-size:15px;color:var(--muted)}
+.state{border-radius:26px;padding:26px 22px 22px;color:#fff;background:var(--door);display:flex;flex-direction:column;gap:6px;transition:background .5s ease}
+.state.lock{background:var(--lock)}.state.open{background:var(--open)}.state.door{background:var(--door)}.state.cal{background:var(--cal)}.state.none{background:var(--muted)}
+.state svg{width:58px;height:58px}
+.state h1{margin:6px 0 0;font-family:var(--display);font-weight:900;font-size:clamp(34px,10.5vw,54px);line-height:.95;text-wrap:balance;overflow-wrap:anywhere}
+.state p{margin:0;font-size:18px;opacity:.92}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:14px;border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;color:var(--muted)}
+.chip.ok{color:var(--lock);border-color:var(--lock)}
+.chip.bad{color:var(--warn);border-color:var(--warn)}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:16px;padding:12px 16px;font-weight:600}
+button{font:inherit;font-weight:700;min-height:54px;border-radius:16px;border:0;background:var(--accent);color:var(--on-accent);padding:0 18px;cursor:pointer}
+button:disabled{opacity:.6;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.note{font-size:15px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px 18px}
+.card h2{margin:0 0 6px;font-size:13px;font-family:var(--mono);font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+li:last-child{border-bottom:0}
+li i{width:12px;height:12px;border-radius:50%;flex:none;background:var(--door)}
+li time{margin-left:auto;font-family:var(--mono);font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+label{font-weight:700}
+input{font:inherit;width:100%;min-height:50px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:0 14px;font-family:var(--mono)}
+.foot{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:var(--muted)}
+.foot a{color:var(--accent)}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){.state{transition:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-head" viewBox="0 0 100 100">
+      <path d="M26 46 C11 42 5 27 10 9 C16 22 24 29 36 32 Z" fill="#FFB224" stroke="#0E1430" stroke-width="3"/>
+      <path d="M74 46 C89 42 95 27 90 9 C84 22 76 29 64 32 Z" fill="#FFB224" stroke="#0E1430" stroke-width="3"/>
+      <path d="M22 53 C22 22 78 22 78 53 Z" fill="#2F55F0" stroke="#0E1430" stroke-width="3"/>
+      <rect x="25" y="48" width="50" height="35" rx="10" fill="#C9D3EE" stroke="#0E1430" stroke-width="3"/>
+      <rect x="19" y="44" width="62" height="10" rx="5" fill="#1F3FC4" stroke="#0E1430" stroke-width="3"/>
+      <rect x="30.5" y="58" width="39" height="14" rx="7" fill="#0E1430"/>
+      <rect x="35.5" y="61.5" width="9.5" height="7" rx="3.5" fill="#2ED47A"/><rect x="55" y="61.5" width="9.5" height="7" rx="3.5" fill="#2ED47A"/>
+      <path d="M28 78 H72 L67 92 L59 88 L50 98 L41 88 L33 92 Z" fill="#FFB224" stroke="#0E1430" stroke-width="3"/>
+    </symbol>
+    <symbol id="i-lock" viewBox="0 0 48 48"><rect x="9" y="21" width="30" height="22" rx="5" fill="currentColor"/><path d="M15 21v-6a9 9 0 0 1 18 0v6" fill="none" stroke="currentColor" stroke-width="4.5"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 48 48"><rect x="9" y="21" width="30" height="22" rx="5" fill="currentColor"/><path d="M15 21v-6a9 9 0 0 1 17.5-3" fill="none" stroke="currentColor" stroke-width="4.5"/></symbol>
+    <symbol id="i-door" viewBox="0 0 48 48"><path d="M10 43V7h20v36" fill="none" stroke="currentColor" stroke-width="4"/><path d="M30 9l10 4v28l-10 3z" fill="currentColor"/><circle cx="34" cy="27" r="1.8" fill="#fff"/></symbol>
+    <symbol id="i-q" viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="4"/><path d="M18 19a6 6 0 1 1 8.5 5.4c-1.8.9-2.5 2-2.5 3.6v1" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="35" r="2.4" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<main>
+  <div class="top"><svg aria-hidden="true"><use href="#i-head"/></svg><b>Türwächter</b><span id="live">verbinde …</span></div>
+
+  <section id="setup" class="card" hidden>
+    <form id="f" style="display:flex;flex-direction:column;gap:10px">
+      <label for="topic">Push-Kanal deines Türwächters</label>
+      <input id="topic" name="topic" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tuerwaechter-xxxxxxxxxx" required pattern="[A-Za-z0-9_\-]{8,64}">
+      <p class="note">Steht auf der Seite des Wächters unter «Einstellungen». Er bleibt nur auf diesem Handy gespeichert.</p>
+      <button type="submit">Verbinden</button>
+    </form>
+  </section>
+
+  <section id="view" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="state none" id="state" role="status" aria-live="polite">
+      <svg aria-hidden="true"><use id="sicon" href="#i-q"/></svg>
+      <h1 id="stxt">Warte auf Meldung</h1>
+      <p id="ssub">Noch keine Meldung vom Wächter.</p>
+    </div>
+    <div class="row" id="chips"></div>
+    <div class="banner" id="banner" hidden></div>
+    <button id="ask" type="button">Zustand jetzt abfragen</button>
+    <p class="note" id="asknote">Der Wächter schickt jede Änderung sofort. Abfragen musst du nur, wenn du ganz sicher sein willst.</p>
+    <div class="card"><h2>Verlauf (letzte 12 Stunden)</h2><ul id="hist"><li><span class="note">Noch nichts</span></li></ul></div>
+    <div class="foot"><span id="door"></span><a href="#" id="change">Kanal ändern</a></div>
+  </section>
+</main>
+
+<script>
+const NTFY = "https://ntfy.sh";
+const STATES = {
+  0: { t: "Nicht abgeschlossen", sub: "Tür zu, aber nicht abgeschlossen", cls: "open", icon: "i-unlock", dot: "var(--open)" },
+  1: { t: "Abgeschlossen", sub: "1× abgeschlossen", cls: "lock", icon: "i-lock", dot: "var(--lock)" },
+  2: { t: "Abgeschlossen", sub: "2× abgeschlossen", cls: "lock", icon: "i-lock", dot: "var(--lock)" },
+  3: { t: "Tür offen", sub: "Die Tür steht offen", cls: "door", icon: "i-door", dot: "var(--door)" },
+  4: { t: "Nicht angelernt", sub: "Bitte am Wächter anlernen", cls: "cal", icon: "i-q", dot: "var(--cal)" }
+};
+const $ = id => document.getElementById(id);
+let topic = "", msgs = [], lastId = "", es = null, askedAt = 0, pollMin = 15, demo = false;
+
+function store(k, v) { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+const hhmm = t => new Date(t * 1000).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+function ago(t) {
+  const s = Math.max(0, Date.now() / 1000 - t);
+  if (s < 60) return "gerade eben";
+  if (s < 3600) return "vor " + Math.round(s / 60) + " Min.";
+  if (s < 86400) return "vor " + Math.floor(s / 3600) + " Std." + (s % 3600 >= 600 ? " " + Math.round((s % 3600) / 60) + " Min." : "");
+  return "vor " + Math.floor(s / 86400) + " Tagen";
+}
+
+function addMsg(o) {
+  if (!o || o.event !== "message" || msgs.some(m => m.id === o.id)) return;
+  let d; try { d = JSON.parse(o.message); } catch (e) { return; }
+  if (typeof d.s !== "number") return;
+  msgs.push({ id: o.id, time: o.time, d });
+  msgs.sort((a, b) => a.time - b.time);
+  lastId = msgs[msgs.length - 1].id;
+}
+
+function render() {
+  const cur = msgs[msgs.length - 1];
+  const st = $("state"), chips = [];
+  if (!cur) {
+    st.className = "state none"; $("sicon").setAttribute("href", "#i-q");
+    $("stxt").textContent = "Warte auf Meldung";
+    $("ssub").textContent = "In den letzten 12 Stunden kam keine Meldung. Frag den Wächter mit dem Knopf unten.";
+  } else {
+    const d = cur.d, s = STATES[d.s] || STATES[4];
+    const since = d.since > 0 ? d.since : cur.time - (d.ago || 0);
+    st.className = "state " + s.cls; $("sicon").setAttribute("href", "#" + s.icon);
+    $("stxt").textContent = s.t;
+    $("ssub").textContent = s.sub + " · seit " + hhmm(since) + " (" + ago(since) + ")";
+    $("door").textContent = d.name || "";
+    pollMin = d.poll || 15;
+    const stale = Date.now() / 1000 - cur.time > 7 * 3600;
+    chips.push(`<span class="chip ${stale ? "bad" : "ok"}">Letzte Meldung ${ago(cur.time)}</span>`);
+    if (d.batt > 0) chips.push(`<span class="chip">Akku ${(d.batt / 1000).toFixed(2)} V</span>`);
+    chips.push(`<span class="chip">${d.mode === "akku" ? "Stromsparen" : "Immer wach"}</span>`);
+    const b = $("banner");
+    if (stale) { b.hidden = false; b.textContent = "Der Wächter hat sich seit über 7 Stunden nicht gemeldet. Batterie und WLAN prüfen."; }
+    else if (d.leave) { b.hidden = false; b.textContent = "Tür zu, aber nicht abgeschlossen. Bist du schon unterwegs?"; }
+    else b.hidden = true;
+  }
+  $("chips").innerHTML = chips.join("");
+  // Verlauf: nur Wechsel des Zustands
+  const rows = []; let prev = null;
+  for (const m of msgs) {
+    if (m.d.s === prev) continue; prev = m.d.s;
+    const s = STATES[m.d.s] || STATES[4];
+    const t = m.d.since > 0 ? m.d.since : m.time - (m.d.ago || 0);
+    rows.push(`<li><i style="background:${s.dot}"></i><span>${s.sub}</span><time>${hhmm(t)}</time></li>`);
+  }
+  $("hist").innerHTML = rows.reverse().slice(0, 12).join("") || '<li><span class="note">Noch nichts</span></li>';
+  // Abfrage-Hinweis
+  if (askedAt) {
+    if (cur && cur.time >= askedAt) { $("asknote").textContent = "Aktualisiert um " + hhmm(cur.time) + "."; askedAt = 0; $("ask").disabled = false; }
+    else $("asknote").textContent = "Gefragt um " + hhmm(askedAt) + ". " + (cur && cur.d.mode === "wach" ? "Die Antwort kommt gleich." : "Der Wächter schaut alle " + pollMin + " Minuten nach. Die Antwort erscheint hier von selbst.");
+  }
+}
+
+async function poll() {
+  try {
+    const r = await fetch(`${NTFY}/${topic}-zustand/json?poll=1&since=${lastId || "13h"}`, { cache: "no-store" });
+    const txt = await r.text();
+    txt.split("\n").forEach(l => { if (l.trim()) { try { addMsg(JSON.parse(l)); } catch (e) {} } });
+    $("live").textContent = "verbunden";
+  } catch (e) { $("live").textContent = "offline"; }
+  render();
+}
+
+function listen() {
+  if (es) es.close();
+  try {
+    es = new EventSource(`${NTFY}/${topic}-zustand/sse?since=${lastId || "13h"}`);
+    es.onmessage = ev => { try { addMsg(JSON.parse(ev.data)); render(); } catch (e) {} };
+    es.onopen = () => { $("live").textContent = "live"; };
+    es.onerror = () => { $("live").textContent = "verbinde …"; };
+  } catch (e) {}
+}
+
+async function ask() {
+  if (demo) { askedAt = Date.now() / 1000; $("ask").disabled = true; render(); return; }
+  $("ask").disabled = true;
+  try {
+    const r = await fetch(`${NTFY}/${topic}-frage`, { method: "POST", body: "seite" });
+    if (!r.ok) throw new Error(r.status);
+    askedAt = Math.floor(Date.now() / 1000) - 2;
+  } catch (e) {
+    $("asknote").textContent = "Abfragen ging nicht. Hast du Internet?"; $("ask").disabled = false; return;
+  }
+  render();
+}
+
+function start(t) {
+  topic = t; msgs = []; lastId = "";
+  $("setup").hidden = true; $("view").hidden = false;
+  if (t === "demo") return startDemo();
+  poll().then(listen);
+  setInterval(render, 30000);
+  setInterval(poll, 300000);      // falls die Live-Verbindung abreisst
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+}
+
+function startDemo() {                               // Beispieldaten zum Ansehen, ohne Wächter
+  demo = true; $("live").textContent = "Beispiel";
+  const now = Math.floor(Date.now() / 1000), m = (min, s) => ({ event: "message", id: "d" + min, time: now - min * 60, message: JSON.stringify({ v: 1, s, name: "Haustür (Beispiel)", since: now - min * 60, ago: 0, leave: 0, batt: 0, mode: "akku", poll: 15 }) });
+  [m(410, 2), m(395, 0), m(394, 3), m(393, 0), m(392, 1), m(391, 2), m(180, 0), m(179, 3), m(178, 0), m(177, 2)].forEach(addMsg);
+  render(); setInterval(render, 30000);
+}
+
+$("f").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = $("topic").value.trim();
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(v)) return;
+  store("tw-topic", v); location.hash = v; start(v);
+});
+$("ask").addEventListener("click", ask);
+$("change").addEventListener("click", e => { e.preventDefault(); store("tw-topic", null); history.replaceState(null, "", location.pathname); location.reload(); });
+
+const fromHash = decodeURIComponent(location.hash.slice(1));
+const t0 = /^[A-Za-z0-9_-]{4,64}$/.test(fromHash) ? fromHash : load("tw-topic");
+if (t0) { if (t0 !== "demo") store("tw-topic", t0); start(t0); } else { $("setup").hidden = false; $("live").textContent = ""; }
+</script>
+</body>
+</html>
