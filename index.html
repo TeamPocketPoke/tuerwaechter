@@ -281,7 +281,7 @@ async function ask() {
   if (demo) { askedAt = Date.now() / 1000; $("ask").disabled = true; render(); return; }
   $("ask").disabled = true;
   try {
-    const r = await fetch(`${NTFY}/${topic}-frage`, { method: "POST", body: "seite" });
+    const r = await fetch(`${NTFY}/${topic}-frage`, { method: "POST", body: "status" });
     if (!r.ok) throw new Error(r.status);
     askedAt = Math.floor(Date.now() / 1000) - 2;
     // Nicht nur auf die Live-Verbindung warten: 60 s lang alle 2 s selbst nachfragen
