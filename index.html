@@ -41,6 +41,13 @@ main{max-width:480px;margin:0 auto;padding-block:max(18px, env(safe-area-inset-t
 .chip.ok{color:var(--lock);border-color:var(--lock)}
 .chip.bad{color:var(--warn);border-color:var(--warn)}
 .banner{background:var(--warn-bg);color:var(--warn);border-radius:16px;padding:12px 16px;font-weight:600}
+.news li{align-items:flex-start}
+.news .em{font-size:20px;line-height:1.3;width:24px;flex:none;text-align:center}
+.news .tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.news .tx b{font-size:16px}
+.news .tx span{font-size:15px;color:var(--muted)}
+.news li.urgent .tx b{color:var(--warn)}
+.news button{min-height:40px;font-size:15px;border-radius:12px;margin-top:6px;align-self:flex-start;padding:0 14px}
 button{font:inherit;font-weight:700;min-height:54px;border-radius:16px;border:0;background:var(--accent);color:var(--on-accent);padding:0 18px;cursor:pointer}
 button:disabled{opacity:.6;cursor:default}
 button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
@@ -102,6 +109,7 @@ input{font:inherit;width:100%;min-height:50px;border-radius:14px;border:1.5px so
     <div class="banner" id="banner" hidden></div>
     <button id="ask" type="button">Zustand jetzt abfragen</button>
     <p class="note" id="asknote">Der Wächter schickt jede Änderung sofort. Abfragen musst du nur, wenn du ganz sicher sein willst.</p>
+    <div class="card"><h2>Nachrichten</h2><ul class="news" id="news"><li><span class="note">Noch keine Nachrichten in den letzten 12 Stunden</span></li></ul></div>
     <div class="card"><h2>Verlauf (letzte 12 Stunden)</h2><ul id="hist"><li><span class="note">Noch nichts</span></li></ul></div>
     <div class="card" id="upd" hidden><h2>Firmware</h2>
       <p id="updtxt" style="margin:4px 0 12px"></p>
@@ -124,6 +132,45 @@ const STATES = {
 const $ = id => document.getElementById(id);
 let topic = "", msgs = [], lastId = "", es = null, askedAt = 0, pollMin = 15, demo = false;
 let fwNow = "", fwNew = "", updAskedAt = 0;
+let news = [], newsLastId = "", esNews = null, homeSentAt = 0;
+const EMO = { lock: "🔒", unlock: "🔓", door: "🚪", rotating_light: "🚨", white_check_mark: "✅", house: "🏠", battery: "🔋", question: "❓", warning: "⚠️" };
+const esc = t => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function addNews(o) {
+  if (!o || o.event !== "message" || news.some(n => n.id === o.id)) return;
+  news.push({ id: o.id, time: o.time, title: o.title || "", msg: o.message || "", prio: o.priority || 3, tags: o.tags || [] });
+  news.sort((a, b) => a.time - b.time); newsLastId = news[news.length - 1].id;
+}
+function renderNews() {
+  const list = news.slice(-15).reverse();
+  const lastHome = Math.max(homeSentAt, ...news.filter(n => n.tags.includes("house")).map(n => n.time), 0);
+  $("news").innerHTML = list.map(n => {
+    const em = n.tags.map(t => EMO[t]).find(Boolean) || "🔔";
+    const leave = n.tags.includes("rotating_light") && Date.now() / 1000 - n.time < 3600 && lastHome < n.time;
+    return `<li class="${n.prio >= 4 ? "urgent" : ""}"><span class="em" aria-hidden="true">${em}</span><div class="tx"><b>${esc(n.title)}</b><span>${esc(n.msg)}</span>${leave ? '<button type="button" class="home">Ich bin daheim</button>' : ""}</div><time>${hhmm(n.time)}</time></li>`;
+  }).join("") || '<li><span class="note">Noch keine Nachrichten in den letzten 12 Stunden</span></li>';
+  document.querySelectorAll("#news .home").forEach(b => b.addEventListener("click", sendHome));
+}
+async function sendHome(e) {
+  e.target.disabled = true;
+  try {
+    if (!demo) { const r = await fetch(`${NTFY}/${topic}-frage`, { method: "POST", body: "daheim" }); if (!r.ok) throw new Error(r.status); }
+    homeSentAt = Math.floor(Date.now() / 1000); e.target.textContent = "Gesendet – keine weitere Warnung";
+  } catch (err) { e.target.disabled = false; e.target.textContent = "Ging nicht – nochmals"; }
+}
+async function pollNews() {
+  try {
+    const r = await fetch(`${NTFY}/${topic}/json?poll=1&since=${newsLastId || "12h"}`, { cache: "no-store" });
+    (await r.text()).split("\n").forEach(l => { if (l.trim()) { try { addNews(JSON.parse(l)); } catch (e) {} } });
+  } catch (e) {}
+  renderNews();
+}
+function listenNews() {
+  if (esNews) esNews.close();
+  try {
+    esNews = new EventSource(`${NTFY}/${topic}/sse?since=${newsLastId || "12h"}`);
+    esNews.onmessage = ev => { try { addNews(JSON.parse(ev.data)); renderNews(); } catch (e) {} };
+  } catch (e) {}
+}
 const verNum = v => (v || "").split(".").slice(0, 3).concat(["0", "0", "0"]).slice(0, 3).reduce((n, p) => n * 100 + (parseInt(p, 10) || 0), 0);
 async function loadVersion() {        // version.txt liegt neben dieser Seite
   try { const r = await fetch("version.txt", { cache: "no-store" }); if (r.ok) fwNew = (await r.text()).trim().split(/\s+/)[0]; } catch (e) {}
@@ -247,17 +294,21 @@ function start(t) {
   topic = t; msgs = []; lastId = "";
   $("setup").hidden = true; $("view").hidden = false;
   if (t === "demo") return startDemo();
-  poll().then(listen); loadVersion(); setInterval(loadVersion, 600000);
-  setInterval(render, 30000);
-  setInterval(poll, 300000);      // falls die Live-Verbindung abreisst
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+  poll().then(listen); pollNews().then(listenNews); loadVersion(); setInterval(loadVersion, 600000);
+  setInterval(() => { render(); renderNews(); }, 30000);
+  setInterval(() => { poll(); pollNews(); }, 300000);      // falls die Live-Verbindung abreisst
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { poll(); pollNews(); } });
 }
 
 function startDemo() {                               // Beispieldaten zum Ansehen, ohne Wächter
   demo = true; $("live").textContent = "Beispiel";
   const now = Math.floor(Date.now() / 1000), m = (min, s) => ({ event: "message", id: "d" + min, time: now - min * 60, message: JSON.stringify({ v: 1, s, name: "Haustür (Beispiel)", since: now - min * 60, ago: 0, leave: 0, batt: 0, mode: "akku", poll: 15, fw: "0.9" }) });
   [m(410, 2), m(395, 0), m(394, 3), m(393, 0), m(392, 1), m(391, 2), m(180, 0), m(179, 3), m(178, 0), m(177, 2)].forEach(addMsg);
-  fwNew = "0.9.1"; render(); setInterval(render, 30000);
+  const n = (min, title, message, tags, priority = 3) => ({ event: "message", id: "n" + min, time: now - min * 60, title, message, tags, priority });
+  [n(392, "Haustür 1× abgeschlossen", "Alles gut", ["lock"]), n(391, "Haustür 2× abgeschlossen", "Alles gut", ["lock"]),
+   n(180, "Haustür aufgeschlossen", "Zu, aber nicht mehr abgeschlossen", ["unlock"], 2),
+   n(25, "Haustür: nicht abgeschlossen!", "Die Tür ist zu, aber nicht abgeschlossen. Bist du schon unterwegs?", ["rotating_light"], 5)].forEach(addNews);
+  fwNew = "0.9.1"; render(); renderNews(); setInterval(() => { render(); renderNews(); }, 30000);
 }
 
 $("f").addEventListener("submit", e => {
