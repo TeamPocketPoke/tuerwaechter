@@ -103,6 +103,11 @@ input{font:inherit;width:100%;min-height:50px;border-radius:14px;border:1.5px so
     <button id="ask" type="button">Zustand jetzt abfragen</button>
     <p class="note" id="asknote">Der Wächter schickt jede Änderung sofort. Abfragen musst du nur, wenn du ganz sicher sein willst.</p>
     <div class="card"><h2>Verlauf (letzte 12 Stunden)</h2><ul id="hist"><li><span class="note">Noch nichts</span></li></ul></div>
+    <div class="card" id="upd" hidden><h2>Firmware</h2>
+      <p id="updtxt" style="margin:4px 0 12px"></p>
+      <button id="updbtn" type="button" hidden>Update installieren</button>
+      <p class="note" id="updnote" style="margin:10px 0 0" hidden></p>
+    </div>
     <div class="foot"><span id="door"></span><a href="#" id="change">Kanal ändern</a></div>
   </section>
 </main>
@@ -118,6 +123,29 @@ const STATES = {
 };
 const $ = id => document.getElementById(id);
 let topic = "", msgs = [], lastId = "", es = null, askedAt = 0, pollMin = 15, demo = false;
+let fwNow = "", fwNew = "", updAskedAt = 0;
+const verNum = v => (v || "").split(".").slice(0, 3).concat(["0", "0", "0"]).slice(0, 3).reduce((n, p) => n * 100 + (parseInt(p, 10) || 0), 0);
+async function loadVersion() {        // version.txt liegt neben dieser Seite
+  try { const r = await fetch("version.txt", { cache: "no-store" }); if (r.ok) fwNew = (await r.text()).trim().split(/\s+/)[0]; } catch (e) {}
+  renderUpd();
+}
+function renderUpd() {
+  if (!fwNow) { $("upd").hidden = true; return; }
+  $("upd").hidden = false;
+  const newer = fwNew && verNum(fwNew) > verNum(fwNow);
+  $("updtxt").textContent = "Installiert: " + fwNow + (newer ? " · Neu verfügbar: " + fwNew : fwNew ? " · aktuell" : "");
+  $("updbtn").hidden = !newer;
+  if (updAskedAt && !newer) { $("updnote").hidden = false; $("updnote").textContent = "Update fertig."; updAskedAt = 0; }
+  else if (updAskedAt) { $("updnote").hidden = false; $("updnote").textContent = "Update angefordert um " + hhmm(updAskedAt) + ". Der Wächter holt es beim nächsten Nachschauen (höchstens " + pollMin + " Min.), das Licht blinkt dann blau. Du bekommst eine Nachricht, wenn es fertig ist."; }
+}
+async function askUpdate() {
+  $("updbtn").disabled = true;
+  try {
+    if (!demo) { const r = await fetch(`${NTFY}/${topic}-frage`, { method: "POST", body: "update" }); if (!r.ok) throw new Error(r.status); }
+    updAskedAt = Math.floor(Date.now() / 1000);
+  } catch (e) { $("updnote").hidden = false; $("updnote").textContent = "Anfordern ging nicht. Hast du Internet?"; }
+  $("updbtn").disabled = false; renderUpd();
+}
 
 function store(k, v) { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} }
 function load(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
@@ -140,6 +168,7 @@ function addMsg(o) {
 }
 
 function render() {
+  setTimeout(renderUpd, 0);
   const cur = msgs[msgs.length - 1];
   const st = $("state"), chips = [];
   if (!cur) {
@@ -154,6 +183,7 @@ function render() {
     $("ssub").textContent = s.sub + " · seit " + hhmm(since) + " (" + ago(since) + ")";
     $("door").textContent = d.name || "";
     pollMin = d.poll || 15;
+    fwNow = d.fw || "";
     const stale = Date.now() / 1000 - cur.time > 7 * 3600;
     chips.push(`<span class="chip ${stale ? "bad" : "ok"}">Letzte Meldung ${ago(cur.time)}</span>`);
     if (d.batt > 0) chips.push(`<span class="chip">Akku ${(d.batt / 1000).toFixed(2)} V</span>`);
@@ -217,7 +247,7 @@ function start(t) {
   topic = t; msgs = []; lastId = "";
   $("setup").hidden = true; $("view").hidden = false;
   if (t === "demo") return startDemo();
-  poll().then(listen);
+  poll().then(listen); loadVersion(); setInterval(loadVersion, 600000);
   setInterval(render, 30000);
   setInterval(poll, 300000);      // falls die Live-Verbindung abreisst
   document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
@@ -225,9 +255,9 @@ function start(t) {
 
 function startDemo() {                               // Beispieldaten zum Ansehen, ohne Wächter
   demo = true; $("live").textContent = "Beispiel";
-  const now = Math.floor(Date.now() / 1000), m = (min, s) => ({ event: "message", id: "d" + min, time: now - min * 60, message: JSON.stringify({ v: 1, s, name: "Haustür (Beispiel)", since: now - min * 60, ago: 0, leave: 0, batt: 0, mode: "akku", poll: 15 }) });
+  const now = Math.floor(Date.now() / 1000), m = (min, s) => ({ event: "message", id: "d" + min, time: now - min * 60, message: JSON.stringify({ v: 1, s, name: "Haustür (Beispiel)", since: now - min * 60, ago: 0, leave: 0, batt: 0, mode: "akku", poll: 15, fw: "0.9" }) });
   [m(410, 2), m(395, 0), m(394, 3), m(393, 0), m(392, 1), m(391, 2), m(180, 0), m(179, 3), m(178, 0), m(177, 2)].forEach(addMsg);
-  render(); setInterval(render, 30000);
+  fwNew = "0.9.1"; render(); setInterval(render, 30000);
 }
 
 $("f").addEventListener("submit", e => {
@@ -237,6 +267,7 @@ $("f").addEventListener("submit", e => {
   store("tw-topic", v); location.hash = v; start(v);
 });
 $("ask").addEventListener("click", ask);
+$("updbtn").addEventListener("click", askUpdate);
 $("change").addEventListener("click", e => { e.preventDefault(); store("tw-topic", null); history.replaceState(null, "", location.pathname); location.reload(); });
 
 const fromHash = decodeURIComponent(location.hash.slice(1));
